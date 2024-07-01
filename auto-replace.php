@@ -36,8 +36,15 @@ class AutoReplace {
                 <select id="plugin-select" name="plugin" onchange="fetchFunctionsClasses(this.value)">
                     <?php $this->get_plugins(); ?>
                 </select>
-                <div id="plugin-functions">
-                    <!-- Functions and classes will be displayed here -->
+                <div id="plugin-functions-classes">
+                    <div id="plugin-functions">
+                        <h2>Functions</h2>
+                        <!-- Functions will be displayed here -->
+                    </div>
+                    <div id="plugin-classes">
+                        <h2>Classes</h2>
+                        <!-- Classes will be displayed here -->
+                    </div>
                 </div>
                 <button type="submit" name="replace">Replace</button>
             </form>
@@ -54,7 +61,9 @@ class AutoReplace {
                         plugin: pluginFile
                     },
                     success: function(response) {
-                        jQuery('#plugin-functions').html(response);
+                        var data = JSON.parse(response);
+                        jQuery('#plugin-functions').html('<h2>Functions</h2>' + data.functions);
+                        jQuery('#plugin-classes').html('<h2>Classes</h2>' + data.classes);
                     }
                 });
             }
@@ -72,10 +81,11 @@ class AutoReplace {
     public function get_plugin_functions_classes($plugin_file) {
         $plugin_dir = WP_PLUGIN_DIR . '/' . dirname($plugin_file);
         if (!is_dir($plugin_dir)) {
-            return [];
+            return ['functions' => [], 'classes' => []];
         }
 
-        $functions_classes = [];
+        $functions = [];
+        $classes = [];
         $files = $this->get_all_files($plugin_dir);
 
         foreach ($files as $file) {
@@ -84,15 +94,15 @@ class AutoReplace {
 
             for ($i = 0; $i < count($tokens); $i++) {
                 if ($tokens[$i][0] == T_FUNCTION) {
-                    $functions_classes[] = $tokens[$i + 2][1]; // Function name
+                    $functions[] = $tokens[$i + 2][1]; // Function name
                 }
                 if ($tokens[$i][0] == T_CLASS) {
-                    $functions_classes[] = $tokens[$i + 2][1]; // Class name
+                    $classes[] = $tokens[$i + 2][1]; // Class name
                 }
             }
         }
 
-        return $functions_classes;
+        return ['functions' => $functions, 'classes' => $classes];
     }
 
     private function get_all_files($dir) {
@@ -121,11 +131,22 @@ class AutoReplace {
         }
 
         $plugin_file = sanitize_text_field($_POST['plugin']);
-        $functions_classes = $this->get_plugin_functions_classes($plugin_file);
+        $result = $this->get_plugin_functions_classes($plugin_file);
 
-        foreach ($functions_classes as $fc) {
-            echo '<div>' . esc_html($fc) . '</div>';
+        $functions_html = '';
+        foreach ($result['functions'] as $function) {
+            $functions_html .= '<div>' . esc_html($function) . '</div>';
         }
+
+        $classes_html = '';
+        foreach ($result['classes'] as $class) {
+            $classes_html .= '<div>' . esc_html($class) . '</div>';
+        }
+
+        echo json_encode([
+            'functions' => $functions_html,
+            'classes' => $classes_html,
+        ]);
 
         wp_die();
     }
