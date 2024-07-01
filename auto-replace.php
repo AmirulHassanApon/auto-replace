@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Auto Replace
  * Description: A plugin to automatically replace functions and classes of selected plugins.
- * Version: 1.0
+ * Version: 1.1
  * Author: Your Name
  */
 
@@ -15,6 +15,7 @@ class AutoReplace {
     public function __construct() {
         add_action('admin_menu', array($this, 'create_admin_page'));
         add_action('wp_ajax_get_plugin_details', array($this, 'get_plugin_details_ajax'));
+        add_action('wp_ajax_replace_names', array($this, 'replace_names_ajax'));
     }
 
     public function create_admin_page() {
@@ -50,7 +51,11 @@ class AutoReplace {
                         <!-- Text Domain will be displayed here -->
                     </div>
                 </div>
-                <button type="submit" name="replace">Replace</button>
+                <label for="old-name">Old Name:</label>
+                <input type="text" id="old-name" name="old_name">
+                <label for="new-name">New Name:</label>
+                <input type="text" id="new-name" name="new_name">
+                <button type="button" onclick="replaceNames()">Replace</button>
             </form>
         </div>
         <script type="text/javascript">
@@ -72,24 +77,29 @@ class AutoReplace {
                     }
                 });
             }
+
+            function replaceNames() {
+                var pluginFile = jQuery('#plugin-select').val();
+                var oldName = jQuery('#old-name').val();
+                var newName = jQuery('#new-name').val();
+
+                if (pluginFile === '' || oldName === '' || newName === '') return;
+
+                jQuery.ajax({
+                    url: ajaxurl,
+                    type: 'post',
+                    data: {
+                        action: 'replace_names',
+                        plugin: pluginFile,
+                        old_name: oldName,
+                        new_name: newName
+                    },
+                    success: function(response) {
+                        alert(response);
+                    }
+                });
+            }
         </script>
-        <style>
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-top: 20px;
-            }
-            table, th, td {
-                border: 1px solid #ddd;
-            }
-            th, td {
-                padding: 8px;
-                text-align: left;
-            }
-            th {
-                background-color: #f2f2f2;
-            }
-        </style>
         <?php
     }
 
@@ -122,22 +132,10 @@ class AutoReplace {
 
             for ($i = 0; $i < count($tokens); $i++) {
                 if ($tokens[$i][0] == T_FUNCTION) {
-                    $line = $tokens[$i][2]; // Line number
-                    $function_name = $tokens[$i + 2][1]; // Function name
-                    $functions[] = [
-                        'name' => $function_name,
-                        'file' => str_replace(WP_PLUGIN_DIR, '', $file),
-                        'line' => $line,
-                    ];
+                    $functions[] = $tokens[$i + 2][1]; // Function name
                 }
                 if ($tokens[$i][0] == T_CLASS) {
-                    $line = $tokens[$i][2]; // Line number
-                    $class_name = $tokens[$i + 2][1]; // Class name
-                    $classes[] = [
-                        'name' => $class_name,
-                        'file' => str_replace(WP_PLUGIN_DIR, '', $file),
-                        'line' => $line,
-                    ];
+                    $classes[] = $tokens[$i + 2][1]; // Class name
                 }
             }
         }
@@ -185,17 +183,17 @@ class AutoReplace {
         $plugin_file = sanitize_text_field($_POST['plugin']);
         $result = $this->get_plugin_details($plugin_file);
 
-        $functions_html = '<table><thead><tr><th>Name</th><th>File</th><th>Line</th></tr></thead><tbody>';
+        $functions_html = '<table>';
         foreach ($result['functions'] as $function) {
-            $functions_html .= '<tr><td>' . esc_html($function['name']) . '</td><td>' . esc_html($function['file']) . '</td><td>' . esc_html($function['line']) . '</td></tr>';
+            $functions_html .= '<tr><td>' . esc_html($function) . '</td></tr>';
         }
-        $functions_html .= '</tbody></table>';
+        $functions_html .= '</table>';
 
-        $classes_html = '<table><thead><tr><th>Name</th><th>File</th><th>Line</th></tr></thead><tbody>';
+        $classes_html = '<table>';
         foreach ($result['classes'] as $class) {
-            $classes_html .= '<tr><td>' . esc_html($class['name']) . '</td><td>' . esc_html($class['file']) . '</td><td>' . esc_html($class['line']) . '</td></tr>';
+            $classes_html .= '<tr><td>' . esc_html($class) . '</td></tr>';
         }
-        $classes_html .= '</tbody></table>';
+        $classes_html .= '</table>';
 
         $text_domain_html = '<div>' . esc_html($result['text_domain']) . '</div>';
 
@@ -207,6 +205,29 @@ class AutoReplace {
 
         wp_die();
     }
+
+    public function replace_names_ajax() {
+        if (!isset($_POST['plugin']) || !isset($_POST['old_name']) || !isset($_POST['new_name'])) {
+            wp_die();
+        }
+
+        $plugin_file = sanitize_text_field($_POST['plugin']);
+        $old_name = sanitize_text_field($_POST['old_name']);
+        $new_name = sanitize_text_field($_POST['new_name']);
+
+        $plugin_dir = WP_PLUGIN_DIR . '/' . dirname($plugin_file);
+        $files = $this->get_all_files($plugin_dir);
+
+        foreach ($files as $file) {
+            $content = file_get_contents($file);
+            $updated_content = str_replace($old_name, $new_name, $content);
+            file_put_contents($file, $updated_content);
+        }
+
+        echo 'Replacement completed!';
+        wp_die();
+    }
 }
 
 new AutoReplace();
+?>
