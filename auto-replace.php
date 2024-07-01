@@ -14,7 +14,7 @@ class AutoReplace {
 
     public function __construct() {
         add_action('admin_menu', array($this, 'create_admin_page'));
-        add_action('wp_ajax_get_plugin_functions_classes', array($this, 'get_plugin_functions_classes_ajax'));
+        add_action('wp_ajax_get_plugin_details', array($this, 'get_plugin_details_ajax'));
     }
 
     public function create_admin_page() {
@@ -33,10 +33,10 @@ class AutoReplace {
             <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
             <form method="post" action="">
                 <label for="plugin-select">Select Plugin:</label>
-                <select id="plugin-select" name="plugin" onchange="fetchFunctionsClasses(this.value)">
+                <select id="plugin-select" name="plugin" onchange="fetchPluginDetails(this.value)">
                     <?php $this->get_plugins(); ?>
                 </select>
-                <div id="plugin-functions-classes">
+                <div id="plugin-details">
                     <div id="plugin-functions">
                         <h2>Functions</h2>
                         <!-- Functions will be displayed here -->
@@ -45,29 +45,51 @@ class AutoReplace {
                         <h2>Classes</h2>
                         <!-- Classes will be displayed here -->
                     </div>
+                    <div id="plugin-text-domain">
+                        <h2>Text Domain</h2>
+                        <!-- Text Domain will be displayed here -->
+                    </div>
                 </div>
                 <button type="submit" name="replace">Replace</button>
             </form>
         </div>
         <script type="text/javascript">
-            function fetchFunctionsClasses(pluginFile) {
+            function fetchPluginDetails(pluginFile) {
                 if (pluginFile === '') return;
 
                 jQuery.ajax({
                     url: ajaxurl,
                     type: 'post',
                     data: {
-                        action: 'get_plugin_functions_classes',
+                        action: 'get_plugin_details',
                         plugin: pluginFile
                     },
                     success: function(response) {
                         var data = JSON.parse(response);
                         jQuery('#plugin-functions').html('<h2>Functions</h2>' + data.functions);
                         jQuery('#plugin-classes').html('<h2>Classes</h2>' + data.classes);
+                        jQuery('#plugin-text-domain').html('<h2>Text Domain</h2>' + data.text_domain);
                     }
                 });
             }
         </script>
+        <style>
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+            }
+            table, th, td {
+                border: 1px solid #ddd;
+            }
+            th, td {
+                padding: 8px;
+                text-align: left;
+            }
+            th {
+                background-color: #f2f2f2;
+            }
+        </style>
         <?php
     }
 
@@ -78,14 +100,20 @@ class AutoReplace {
         }
     }
 
-    public function get_plugin_functions_classes($plugin_file) {
+    public function get_plugin_details($plugin_file) {
+        $plugin_path = WP_PLUGIN_DIR . '/' . $plugin_file;
         $plugin_dir = WP_PLUGIN_DIR . '/' . dirname($plugin_file);
         if (!is_dir($plugin_dir)) {
-            return ['functions' => [], 'classes' => []];
+            return [
+                'functions' => [],
+                'classes' => [],
+                'text_domain' => '',
+            ];
         }
 
         $functions = [];
         $classes = [];
+        $text_domain = $this->get_text_domain($plugin_path);
         $files = $this->get_all_files($plugin_dir);
 
         foreach ($files as $file) {
@@ -94,15 +122,39 @@ class AutoReplace {
 
             for ($i = 0; $i < count($tokens); $i++) {
                 if ($tokens[$i][0] == T_FUNCTION) {
-                    $functions[] = $tokens[$i + 2][1]; // Function name
+                    $line = $tokens[$i][2]; // Line number
+                    $function_name = $tokens[$i + 2][1]; // Function name
+                    $functions[] = [
+                        'name' => $function_name,
+                        'file' => str_replace(WP_PLUGIN_DIR, '', $file),
+                        'line' => $line,
+                    ];
                 }
                 if ($tokens[$i][0] == T_CLASS) {
-                    $classes[] = $tokens[$i + 2][1]; // Class name
+                    $line = $tokens[$i][2]; // Line number
+                    $class_name = $tokens[$i + 2][1]; // Class name
+                    $classes[] = [
+                        'name' => $class_name,
+                        'file' => str_replace(WP_PLUGIN_DIR, '', $file),
+                        'line' => $line,
+                    ];
                 }
             }
         }
 
-        return ['functions' => $functions, 'classes' => $classes];
+        return [
+            'functions' => $functions,
+            'classes' => $classes,
+            'text_domain' => $text_domain,
+        ];
+    }
+
+    private function get_text_domain($plugin_path) {
+        $headers = [
+            'TextDomain' => 'Text Domain',
+        ];
+        $data = get_file_data($plugin_path, $headers);
+        return $data['TextDomain'] ?? '';
     }
 
     private function get_all_files($dir) {
@@ -125,27 +177,32 @@ class AutoReplace {
         return $files;
     }
 
-    public function get_plugin_functions_classes_ajax() {
+    public function get_plugin_details_ajax() {
         if (!isset($_POST['plugin'])) {
             wp_die();
         }
 
         $plugin_file = sanitize_text_field($_POST['plugin']);
-        $result = $this->get_plugin_functions_classes($plugin_file);
+        $result = $this->get_plugin_details($plugin_file);
 
-        $functions_html = '';
+        $functions_html = '<table><thead><tr><th>Name</th><th>File</th><th>Line</th></tr></thead><tbody>';
         foreach ($result['functions'] as $function) {
-            $functions_html .= '<div>' . esc_html($function) . '</div>';
+            $functions_html .= '<tr><td>' . esc_html($function['name']) . '</td><td>' . esc_html($function['file']) . '</td><td>' . esc_html($function['line']) . '</td></tr>';
         }
+        $functions_html .= '</tbody></table>';
 
-        $classes_html = '';
+        $classes_html = '<table><thead><tr><th>Name</th><th>File</th><th>Line</th></tr></thead><tbody>';
         foreach ($result['classes'] as $class) {
-            $classes_html .= '<div>' . esc_html($class) . '</div>';
+            $classes_html .= '<tr><td>' . esc_html($class['name']) . '</td><td>' . esc_html($class['file']) . '</td><td>' . esc_html($class['line']) . '</td></tr>';
         }
+        $classes_html .= '</tbody></table>';
+
+        $text_domain_html = '<div>' . esc_html($result['text_domain']) . '</div>';
 
         echo json_encode([
             'functions' => $functions_html,
             'classes' => $classes_html,
+            'text_domain' => $text_domain_html,
         ]);
 
         wp_die();
@@ -153,4 +210,3 @@ class AutoReplace {
 }
 
 new AutoReplace();
-?>
