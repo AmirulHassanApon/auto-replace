@@ -1,0 +1,74 @@
+/* admin-style.css */
+
+.auto-replace-wrap {
+    
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    font-size: 28px;
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+#plugin-select {
+    width: 100%;
+    max-width: 400px;
+    padding: 10px;
+    font-size: 16px;
+}
+
+#plugin-details {
+    margin-top: 20px;
+}
+
+#plugin-functions,
+#plugin-classes,
+#plugin-text-domain {
+    margin-top: 20px;
+}
+
+.auto-replace-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.auto-replace-table th,
+.auto-replace-table td {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+.auto-replace-table th {
+    background-color: #f5f5f5;
+}
+
+.auto-replace-table input[type="text"] {
+    padding: 6px 8px;
+    font-size: 14px;
+    margin-right: 8px;
+}
+
+.auto-replace-table button {
+    padding: 8px 12px;
+    font-size: 14px;
+    background-color: #007cba;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+}
+
+.auto-replace-table button:hover {
+    background-color: #005f80;
+}
