@@ -87,21 +87,24 @@ class AutoReplace_Helpers {
     }
 
     public static function generate_table_html($items, $type, $plugin_file) {
+        $type_label = ucfirst($type);
         $html = '<table class="auto-replace-table">';
-        $html .= '<tr><th>' . esc_html__(ucfirst($type), 'auto-replace') . '</th><th>' . esc_html__('File', 'auto-replace') . '</th><th>' . esc_html__('Line', 'auto-replace') . '</th><th>' . esc_html__('Action', 'auto-replace') . '</th></tr>';
+        $html .= '<tr><th>' . esc_html($type_label) . ' ' . esc_html__('name', 'auto-replace') . '</th><th>' . esc_html__('File', 'auto-replace') . '</th><th>' . esc_html__('Line', 'auto-replace') . '</th><th>' . esc_html__('Action', 'auto-replace') . '</th></tr>';
         foreach ($items as $item) {
             $html .= '<tr>';
             $html .= '<td>' . esc_html($item['name']) . '</td>';
-            $html .= '<td>' . esc_html(basename($item['file'])) . '</td>';
+            $html .= '<td>' . esc_html(dirname($item['file'])) . '</td>';
             $html .= '<td>' . esc_html($item['line']) . '</td>';
             $html .= '<td><input type="text" id="new-name-' . esc_attr($item['name']) . '" placeholder="' . esc_attr__('New Name', 'auto-replace') . '">';
             $html .= '<button type="button" onclick="replaceName(\'' . esc_js($plugin_file) . '\', \'' . esc_js($item['name']) . '\', document.getElementById(\'new-name-' . esc_attr($item['name']) . '\').value, \'' . esc_js($type) . '\')">' . esc_html__('Replace', 'auto-replace') . '</button></td>';
             $html .= '</tr>';
         }
         $html .= '</table>';
-
+    
         return $html;
     }
+    
+    
 
     public static function generate_text_domain_html($text_domain, $plugin_file) {
         $html = '<table class="auto-replace-table">';

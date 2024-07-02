@@ -18,7 +18,7 @@ class AutoReplace_Ajax {
         $classes_html = AutoReplace_Helpers::generate_table_html($result['classes'], 'class', $plugin_file);
         $text_domain_html = AutoReplace_Helpers::generate_text_domain_html($result['text_domain'], $plugin_file);
 
-        echo json_encode([
+        echo wp_json_encode([
             'functions' => $functions_html,
             'classes' => $classes_html,
             'text_domain' => $text_domain_html,
@@ -46,7 +46,9 @@ class AutoReplace_Ajax {
             file_put_contents($file, $updated_content);
         }
 
-        echo ucfirst($type) . ' ' . esc_html__('name replacement completed!', 'auto-replace');
+        // Translators: %s is the type of the item (e.g., Function, Class, Text Domain).
+        $message = sprintf(esc_html__('%s Name replacement completed!', 'auto-replace'), esc_html(ucfirst($type)));
+        echo esc_html($message);
         wp_die();
     }
 }
